@@ -9,6 +9,11 @@ output:
     toc_float: true
 ---
 
+# LEFT OFF CHANGE TO MAKE CORRECT 
+```{r setup, include=FALSE, echo= TRUE, results='hide', message=FALSE}
+knitr::opts_chunk$set(echo=FALSE, results='hide', message=FALSE)
+```
+
 # Getting Started 
 
 ##Cleaing your text data
@@ -19,11 +24,16 @@ When working with our own data this may not always be the case though. Often tex
 INSERT ACTIVITY LOG EXAMPLE 
 
 ```{r}
+#word = str_extract(word, "[[:alpha:]]+")
+#extract strings that match the patten spcified, in this case, extracting all alphabetic characters regardless of capitalization. So Numbers, symbols (i.e.,"_" and "*" often used to flag italics or bold will be removed-- we don't want don't want "Angry" to appear as a diff word than it's italicized form "_Angry_")
 
+#We use str_extract() here because the UTF-8 encoded texts from Project Gutenberg have some examples of words with #underscores around them to indicate emphasis (like italics). The tokenizer treated these as words, but we don’t #want to count “_any_” separately from “any”
 ```
 ## Some additional cleaning reasources to check out
-Regular expressions are often used to specify "patterns" in certain functions. [This regex cheatsheet](https://www.rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf) provides some helpful patterns 
-you can use in certain functions.
+Several helpful resources are available:
+
+ * Regular expressions are often used to specify "patterns" in certain functions. [This regex cheatsheet](https://www.rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf) provides some helpful  string patterns.
+ * This [regex matcher website](https://regex101.com/) is the most helpful free resource I've found for checking and testing that your regular expression is _actually_ specifying the string you think it's specifying. 
 
 ```{r}
 ?grepl
@@ -39,7 +49,7 @@ Different from how text is typically stored in many analytic text mining approac
 
 Let's try it ourselves.
 
-```{r setup, include=FALSE, echo= TRUE , results='hide'}
+```{r}
 #install these packages if you don't already have them
 # install.packages("tidytext")
 # install.packages("janeaustenr")
@@ -96,6 +106,7 @@ cleaned_books %>%
 #Examining and Visualizing most common words across all books and by book: 
 
 cleaned_books_2 <- cleaned_books  %>% 
+  mutate(word = str_extract(word, "[[:alpha:]]+")) %>%
   count(word,sort = TRUE) %>%  #counting the number of occurrences by group (word in this case)
   left_join(cleaned_books,.) %>% 
   rename(n_allbooks = n)  %>% 
@@ -107,7 +118,7 @@ cleaned_books_2 <- cleaned_books  %>%
 #Chart of top 5 words across all books
 library(ggplot2)
 
-#doing al in one tidy flow
+#doing all in one tidy flow
 cleaned_books_2 %>% 
   count(word, sort = TRUE) %>% 
   filter(n > 600) %>%
@@ -143,6 +154,31 @@ cleaned_books_2 %>%
   facet_wrap(~book)
 
 #other ways to visualize?? 
+library(tidyr)
+
+word_freqs <- cleaned_books %>% 
+  mutate(word = str_extract(word, "[[:alpha:]]+")) %>% #Note if I would've added [a-z'] it would've been case sensitive! 
+  count(book,word) %>% 
+  group_by(book)  %>% 
+  mutate(proportion = n/sum(n),
+         n_bybook = n) %>% 
+  select(-n) %>% 
+  spread(book, proportion)  %>% 
+  gather(book,proportion, `Sense & Sensibility`:`Northanger Abbey`)
+  
+
+#LEFT OFF MONDAY NEEDS RE-WORKED 
+library(scales)
+#ggplot(frequency, aes(x = proportion, y = Persuasion, color = abs(Persuasion - proportion))) +
+#  geom_abline(color = "gray40", lty = 2) +
+#  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+#  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+#  scale_x_log10(labels = percent_format()) +
+#  scale_y_log10(labels = percent_format()) +
+#  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+#  facet_wrap(~book, ncol = 2) # +
+#  theme(legend.position="none") +
+#  labs(y = "Persuasion", x = NULL)
 
 ```
  
@@ -150,9 +186,30 @@ cleaned_books_2 %>%
 ![From Tidy Text Format to Others](http://tidytextmining.com/images/tidyflow-ch-5.png)
 
 #Sentiment Analysis
+
 LEFT OFF ON SENTIMENT ANALYSIS CAN BE DONE AS AN INNER JOIN IN INTRO TAB
  *look at other sentiment tabs and see if anything to add then move to topic modeling
  *maybe insert my own example 
+ 
+```{r}
+
+#Three sentiment lexicons are in the tidytext package in the sentiments dataset. Let’s look at the words with a joy #score from the NRC lexicon. What are the most common joy words in Emma?
+
+nrcjoy <- get_sentiments("nrc") %>%
+  filter(sentiment == "joy")
+
+emma_joy <- tidy_books %>%
+  filter(book == "Emma") %>%
+  semi_join(nrcjoy) %>%
+  count(word, sort = TRUE)
+
+#noticed how we used the original tidy books dataset as opposed to to "cleaned_books_2" which we later made. Why? Stop words (i.e., "good", "young") are often overlapping with sentient phrases. 
+
+#Or instead we could examine how sentiment changes during each novel. Let’s find a sentiment score for each word using the Bing lexicon, then count the number of positive and negative words in defined sections of each novel.
+
+#LEFT OFF ON MONDAY 
+ 
+```
 
 ##Jane Austen Novels: Example
 
@@ -162,7 +219,7 @@ TOPIC MODELING (chps 5 and 6 with optimization for finding right number of topic
 
 ## Novels example
 
-## Real World Example
+## Real World ExampleR
 
 #More Advanced topics 
 
