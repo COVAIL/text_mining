@@ -452,7 +452,6 @@ test <- chps_topic_probability %>%
 
 lda.fit <- lda(book ~ topic_1 + topic_2 + topic_3 + topic_4 , 
                   data = train)
-#nice - the first discriminant function achieved 98% seperation!
 
 lda.pred=predict(lda.fit, test)
 names(lda.pred)
@@ -520,56 +519,57 @@ topics_json_lda <- topicmodels_json_ldavis(chapters_lda,
 #' 
 ## ----optimal_topics, results='hide', message=FALSE, warning= FALSE, error=FALSE,eval = FALSE----
 ## 
-#Selecting the optimal number of topics using 5-fold cross-validation with parallel processing
-#Caution- this will take a few mins
+## #Selecting the optimal number of topics using 5-fold cross-validation with parallel processing
+## #Caution- this will take a few mins
+## 
+## #install the below packages before running if you do not already have them
+## library(parallel)
+## library(foreach)
+## library(doParallel)
+## cluster <- makeCluster(detectCores(logical = TRUE) - 1) # leave at least one CPU spare...
+## registerDoParallel(cluster)
+## 
+## clusterEvalQ(cluster, {
+##   library(topicmodels)
+## })
+## 
+## # set parameters for LDA below
+## folds <- 5
+## splitfolds <- sample(1:folds, n, replace = TRUE)
+## candidate_k <- c(2, 3, 4, 5, 6, 7, 10)
+## burnin = 1000
+## iter = 1000
+## keep = 50
+## n <- nrow(chapters_dtm) # doc term matrix created above
+## clusterExport(cluster, c("chapters_dtm", "burnin", "iter", "keep", "splitfolds", "folds", "candidate_k", "n"))
+## 
+## system.time({
+##  results <- foreach(j = 1:length(candidate_k), .combine = rbind) %dopar%{
+##    k <- candidate_k[j]
+##    results_1k <- matrix(0, nrow = folds, ncol = 2)
+##    colnames(results_1k) <- c("k", "perplexity")
+##    for(i in 1:folds){
+##      train_set <- chapters_dtm[splitfolds != i , ] #replace with approprite dtm
+##      valid_set <- chapters_dtm[splitfolds == i, ]
+##      fitted <- LDA(train_set, k = k, method = "Gibbs",
+##                    control = list(burnin = burnin, iter = iter, keep = keep, seed = 1234) )
+##      results_1k[i,] <- c(k, perplexity(fitted, newdata = valid_set))
+##    }
+##    return(results_1k)
+##  }
+## })
+## stopCluster(cluster)
+## 
+## results_df <- as.data.frame(results)
+## #Selecting optimal number of topics given lowest perplexity
+## ggplot(results_df, aes(x = k, y = perplexity)) +
+##  geom_point() +
+##  geom_smooth(se = FALSE) +
+##  ggtitle("5-fold cross-validation of topic modelling with the 'Chapters' data",
+##           "(ie five different models fit for each candidate number of topics)") +
+##  labs(x = "Candidate number of topics", y = "Perplexity when fit to the hold-out set")
+## 
+## #if you run you'll see 4/5 is the optimal number of topics!
 
-#install the below packages before running if you do not already have them
-library(parallel)
-library(foreach)
-library(doParallel)
-cluster <- makeCluster(detectCores(logical = TRUE) - 1) # leave at least one CPU spare...
-registerDoParallel(cluster)
-
-clusterEvalQ(cluster, {
-  library(topicmodels)
-})
-
-# set parameters for LDA below
-folds <- 5
-splitfolds <- sample(1:folds, n, replace = TRUE)
-candidate_k <- c(2, 3, 4, 5, 6, 7, 10)
-burnin = 1000
-iter = 1000
-keep = 50
-n <- nrow(chapters_dtm) # doc term matrix created above
-clusterExport(cluster, c("chapters_dtm", "burnin", "iter", "keep", "splitfolds", "folds", "candidate_k", "n"))
-
-system.time({
- results <- foreach(j = 1:length(candidate_k), .combine = rbind) %dopar%{
-   k <- candidate_k[j]
-   results_1k <- matrix(0, nrow = folds, ncol = 2)
-   colnames(results_1k) <- c("k", "perplexity")
-   for(i in 1:folds){
-     train_set <- chapters_dtm[splitfolds != i , ] #replace with approprite dtm
-     valid_set <- chapters_dtm[splitfolds == i, ]
-     fitted <- LDA(train_set, k = k, method = "Gibbs",
-                   control = list(burnin = burnin, iter = iter, keep = keep, seed = 1234) )
-     results_1k[i,] <- c(k, perplexity(fitted, newdata = valid_set))
-   }
-   return(results_1k)
- }
-})
-stopCluster(cluster)
-
-results_df <- as.data.frame(results)
-#Selecting optimal number of topics given lowest perplexity
-ggplot(results_df, aes(x = k, y = perplexity)) +
- geom_point() +
- geom_smooth(se = FALSE) +
- ggtitle("5-fold cross-validation of topic modelling with the 'Chapters' data",
-          "(ie five different models fit for each candidate number of topics)") +
- labs(x = "Candidate number of topics", y = "Perplexity when fit to the hold-out set")
-
-#if you run you'll see 4/5 is the optimal number of topics!
-
-
+#' 
+#' 
