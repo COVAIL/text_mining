@@ -341,6 +341,7 @@ by_chapter <- books %>%
   filter(chapter > 0) %>%
   unite(document, title, chapter)
 
+
 # split into words
 by_chapter_word <- by_chapter %>%
   unnest_tokens(word, text)
@@ -367,7 +368,7 @@ chapter_topics <- tidy(chapters_lda, matrix = "beta")
 chapter_topics
 #turned the model into a one-topic-per-term-per-row format. For each combination, the model computes the probability of that term being generated from that topic. For example, the term “joe” has an almost zero probability of being generated from topics 1, 2, or 3, but it makes up 1.45% of topic 4
 
-#what are the top 5 terms within each document? 
+#what are the top 5 terms within each topic? 
 top_terms <- chapter_topics %>%
   group_by(topic) %>%
   top_n(5, beta) %>%
@@ -386,10 +387,12 @@ top_terms %>%
   facet_wrap(~ topic, scales = "free") +
   coord_flip()
 ```
+
 These topics are pretty clearly associated with the four books! There’s no question that the topic of “captain”, “nautilus”, “sea”, and “nemo” belongs to Twenty Thousand Leagues Under the Sea, and that “jane”, “darcy”, and “elizabeth” belongs to Pride and Prejudice. We see “pip” and “joe” from Great Expectations and “martians”, “black”, and “night” from The War of the Worlds. We also notice that, in line with LDA being a “fuzzy clustering” method, there can be words in common between multiple topics, such as “miss” in topics 1 and 4, and “time” in topics 3 and 4.
-```{r topics_part2, results='hide', message=FALSE, warning= FALSE, error=FALSE}
+
+```{r topics_part2, message=FALSE, warning= FALSE, error=FALSE}
 #Let's extract the document-topic-probabilities 
-#These may help us to see which topisc are associated with each document 
+#These may help us to see which topics are associated with each document 
 chapters_gamma <- tidy(chapters_lda, matrix = "gamma")
 chapters_gamma
 
@@ -402,8 +405,6 @@ chapters_gamma
 chapters_gamma <- chapters_gamma %>%
   separate(document, c("title", "chapter"), sep = "_", convert = TRUE)
 
-chapters_gamma
-
 chapters_gamma %>%
   mutate(title = reorder(title, gamma * topic)) %>%
   ggplot(aes(factor(topic), gamma)) +
@@ -411,7 +412,7 @@ chapters_gamma %>%
   facet_wrap(~ title)
 
 #We notice that almost all of the chapters from Pride and Prejudice, War of the Worlds, and Twenty Thousand Leagues Under the Sea were uniquely identified as a single topic each.
-#It does look like some chapters from Great Expectations (which should be topic 4) were somewhat associated with other topics. 
+#It does look like some chapters from Great Expectations were somewhat associated with other topics. 
 
 #Are there any cases where the topic most associated with a chapter belonged to another book? First we’d find the topic that was most associated with each chapter using top_n(), which is effectively the “classification” of that chapter.
 
@@ -440,7 +441,11 @@ chapter_classifications %>%
 ```
 
 Some additional resources to dive into later on your text mining journey:
- *As mentioned [the quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) for managing and analyzing text. Built for efficiency and speed to allow for faster manipultion and processing. Quick conversion from dfm to non-quanteda format (i.e., dtm).  Good for tokenizing and stemming. 
+
+ * As mentioned [the quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) for
+ managing and analyzing text. Built for efficiency and speed to allow for faster manipultion and processing. Quick
+ conversion from dfm to non-quanteda format (i.e., dtm).  Good for tokenizing and stemming. 
+ * Word embeddings offer another way to numerically represent text for analyses.The [GloVe](https://cran.r-project.org/web/packages/text2vec/vignettes/glove.html) package offers implimentation in R.
 
 #More advanced topics.. 
 
@@ -457,7 +462,7 @@ chps_topic_probability <- spread(chapters_gamma, topic, gamma) %>%
 #install.packages(MASS)
 
 library(MASS)
-# find the linear combinations of the original variables (the 13 chemical concentrations here) that gives the best possible separation between the groups
+# find the linear combinations of the original variables (in this case doc-topic-probabilities) that gives the best possible separation between the groups (i.e., books as the data is currently formatted)
 chps_topic_probability <- chps_topic_probability %>% 
   mutate(id = row.names(.))
 
@@ -467,7 +472,8 @@ test <- chps_topic_probability %>%
   filter(!id %in% train$id)
 
 lda.fit <- lda(book ~ topic_1 + topic_2 + topic_3 + topic_4 , 
-                  data = train)
+                  data = train)  
+#note lda fxn here performs linear discriminant analysis-- not LDA Latent Dirichlet Allocation
 
 lda.pred=predict(lda.fit, test)
 names(lda.pred)
@@ -476,20 +482,18 @@ table(lda.class,test$book)
 lda.class[1:20]
 test[1:20,'book']
 
-mean(lda.class==test$book) #100% accuracy!! 
-
+mean(lda.class==test$book) 
 
 
 ```
 
 ##Interactive Topic Visualization
-```{r visualizing_lda, results='hide', message=FALSE, warning= FALSE, error=FALSE}
+```{r visualizing_lda,  results='hide', message=FALSE, warning= FALSE, error=FALSE,eval = FALSE}
 ##Handy Function for Topic Visualization
 
 #' @title Interactive Tool for visualizing Topics and Per-Word-pertopic-probabilities
 #' @param file Fitted LDA output, corpus file: row for each token-document combo with count of token within document ,document term matrix
 #' @return Shiny visual of all topics and associated words
-#interactive visualization of all topics
 
 topicmodels_json_ldavis <- function(fitted, corpus, doc_term){
   # Required packages
@@ -526,12 +530,13 @@ topicmodels_json_ldavis <- function(fitted, corpus, doc_term){
 topics_json_lda <- topicmodels_json_ldavis(chapters_lda,
                                          tm::Corpus(tm::VectorSource(distinct(word_counts, document)$document)),
                                          chapters_dtm)
-#serVis(topics_json_lda, open.browser = TRUE)
+
+serVis(topics_json_lda, open.browser = TRUE)
 
 ```
 
 ##Finding the Optimal Number of Topics
-We can take advantage of parrallel processing in R find the optimal number of topics
+We can take advantage of parrallel processing in R to find the optimal number of topics
 
 ```{r optimal_topics, results='hide', message=FALSE, warning= FALSE, error=FALSE,eval = FALSE}
 
@@ -551,12 +556,12 @@ clusterEvalQ(cluster, {
 
 # set parameters for LDA below
 folds <- 5
-splitfolds <- sample(1:folds, n, replace = TRUE)
 candidate_k <- c(2, 3, 4, 5, 6, 7, 10) 
 burnin = 1000
 iter = 1000 
 keep = 50
 n <- nrow(chapters_dtm) # doc term matrix created above 
+splitfolds <- sample(1:folds, n, replace = TRUE)
 clusterExport(cluster, c("chapters_dtm", "burnin", "iter", "keep", "splitfolds", "folds", "candidate_k", "n"))
 
 system.time({

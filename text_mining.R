@@ -11,7 +11,7 @@
 #' 
 #' # Getting Started 
 #' 
-#' ##Cleaing your text data
+#' ##Cleaning your text data
 #' The examples we will cover today involve open source text datasets that have been mostly cleaned for us. We will mostly just have to work on reformatting these data sets to get them "Tidy".
 #' 
 #' When working with our own data this may not always be the case though. Often text data has inconsistent punctuation, spelling error, acronyms, and multiple ways of referring to the same "thing". Several key cleaning resources can be helpful for addressing these issues:
@@ -21,18 +21,20 @@
 #'  * Regular expressions are often used to specify "patterns" in certain functions (i.e., stringr fxns). [This regex cheatsheet](https://www.rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf) provides some helpful  string patterns.
 #'  * This [regex matcher website](https://regex101.com/) is the most helpful free resource I've found for checking and testing that your regular expression is _actually_ specifying the string you think it's specifying. 
 #'  * Given the often cumbersome nature of working with regular expressions the [rex](https://github.com/kevinushey/rex) package allows you to build complex regular expressions in human readable format. 
-#'  * [The quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) and the [SnowballC package](https://cran.r-project.org/web/packages/SnowballC/SnowballC.pdf) allows for efficient stemming (i.e., the process of reducing inflected (or sometimes derived) words to their word stem) so that "cats" and "cat" are recongnized as the same "token". 
+#'  * [The quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) and the [SnowballC package](https://cran.r-project.org/web/packages/SnowballC/SnowballC.pdf) allow for efficient stemming (i.e., the process of reducing inflected,or sometimes derived, words to their word stem) so that "cats" and "cat" are recongnized as the same "token". 
 #' 
 ## ------------------------------------------------------------------------
 #base functions work too!
-?grepl
-?gsub
+?gsub #detects a pattern and replaces match with characters specified
+?grepl #detects presence or absence of a pattern and retuns a logical vector
 #tidy versions
-?str_extract
+# install.packages("stringr")
+library(stringr)
+?str_replace
 ?str_detect
 
 #' 
-#' ##The Tidy Text Format
+#' ##The "Tidy Text" format
 #' A table with one-token-per-row, where a token is just a meaningful "unit" of text (e.g., word, sentence, or paragraph). This format often makes the data easier to manipulate and visualize using standard  "tidy" tools.
 #' 
 #' Different from how text is typically stored in many analytic text mining approaches, which often work on a "corpus" and/or a "document-term matrix". However we will see that transfer among the types is easy if our data is first "tidy".
@@ -41,21 +43,19 @@
 #' 
 ## ----clean, results='hide', message=FALSE, warning= FALSE, error=FALSE----
 #install these packages if you don't already have them
-# install.packages("tidytext")
 # install.packages("janeaustenr")
+# install.packages("tidytext")
 # install.packages("plyr")
 # install.packages("dplyr")
-# install.packages("stringr")
 # install.packages("magrittr")
 
-
+library(tidytext)
 library(janeaustenr)
 library(plyr)
 library(dplyr)
-library(stringr)
 library(magrittr)
 
-#browse the related vignette or others
+#browse the related vignette or others 
 vignette("tidytext",package="tidytext")
 ?austen_books
 
@@ -72,7 +72,6 @@ tail(original_books)
 slice(original_books, 1:500) %>% View
 
 #restructuring as a one-token-per-row format. unnest() does that for us
-library(tidytext)
 
 tidy_books <- original_books %>%
   unnest_tokens(word, text)
@@ -87,14 +86,14 @@ cleaned_books <- tidy_books %>%
 
 
 #' 
-#' ##Some Descriptives once Tidy
+#' ##Some descriptives once tidy
 #' 
 ## ----descriptives, results='hide', message=FALSE, warning= FALSE, error=FALSE----
 #most common words in all the books?
 cleaned_books %>%
   count(word, sort = TRUE)
 
-#Examining and Visualizing most common words across all books and by book: 
+#Examining most common words across all books and by book: 
 
 cleaned_books_2 <- cleaned_books  %>% 
   mutate(word = str_extract(word, "[[:alpha:]]+")) %>%
@@ -109,10 +108,11 @@ cleaned_books_2 <- cleaned_books  %>%
 ##str_extract = extract strings that match the patten spcified, in this case, extracting all alphabetic characters regardless of capitalization. So Numbers, symbols (i.e.,"_" and "*" often used to flag italics or bold will be removed-- we don't want don't want "Angry" to appear as a diff word than it's italicized form "_Angry_")
 
 #Chart of top 5 words across all books
+#install.packages("ggplot2")
 library(ggplot2)
 
 #doing all in one tidy flow
-cleaned_books_2 %>% 
+cleaned_books %>% 
   count(word, sort = TRUE) %>% 
   filter(n > 600) %>%
   mutate(word = reorder(word, n)) %>%
@@ -144,7 +144,9 @@ cleaned_books_2 %>%
   geom_col() +
   xlab(NULL) +
   coord_flip() +
-  facet_wrap(~book)
+  facet_wrap(~book) +
+  ylab('# of Times Used') +
+  xlab('word') 
 
 #other ways to visualize?? 
 
@@ -166,7 +168,7 @@ table(sentiments$lexicon)
 #How many distinct "emotions" are words categorized into?
 table(sentiments$sentiment)
 
-#' For more on the sentiment lexicons contained in this dataset and how they differ checkout some details [here](http://tidytextmining.com/sentiment.html#the-sentiments-dataset):
+#' For more on the sentiment lexicons contained in this dataset and how they differ checkout some details [here](http://tidytextmining.com/sentiment.html#the-sentiments-dataset)
 #'  
 #' Keep in mind that these methods do not take into account qualifiers before a word, such as in “no good” or “not true”; a lexicon-based method like this is based on unigrams only. For many kinds of text (like the narrative examples below), there are not sustained sections of sarcasm or negated text, so this is not an important effect.
 #' 
@@ -180,6 +182,8 @@ table(sentiments$sentiment)
 nrcjoy <- get_sentiments("nrc") %>%
   filter(sentiment == "joy")
 
+head(nrcjoy)
+
 #"get_sentiments" is just a helper fxn that retrives a specific lexicon with only relevant columns
 # equivalent too: filter(sentiments, lexicon == 'nrc' & sentiment == 'joy') %>%  select(word, sentiment)
 
@@ -189,7 +193,7 @@ emma_joy <- tidy_books %>%
   count(word, sort = TRUE)
 
 head(emma_joy)
-#noticed how we used the original tidy books dataset as opposed to to "cleaned_books_2" which we later made. Why? Stop words (i.e., "good", "young") are often overlapping with sentient phrases. 
+#notice how we used the original tidy books dataset as opposed to to "cleaned_books_2" which we later made. Why? Stop words (i.e., "good", "young") are often overlapping with sentient phrases. 
 
 #We could also examine how sentiment changes during each novel. 
 #Let’s find a sentiment score for each word using the Bing lexicon, then count the number of positive and negative words in defined sections of each novel.
@@ -198,20 +202,24 @@ head(emma_joy)
 #categorizes words in a binary fashion to be "postiive" or "negative"
 bing <- get_sentiments("bing")
 head(bing)
-library(tidyr)
+
+#install.packages("tidyr")
+library(tidyr) #we will use this for reformatting df (see ?spread)
 
 janeaustensentiment <- tidy_books %>%
   inner_join(get_sentiments("bing")) %>% #return tidy_book rows with matching values in bing sentiment df 
   count(book, index = linenumber %/% 100, sentiment) %>% #counting number of positive/neg lines wihtin each index chunk
   spread(sentiment, n, fill = 0) %>%
-  mutate(sentiment = positive - negative) #simple msr for each index as # positive words - # of neg words. 
+  mutate(sentiment = positive - negative) #simple measure for each index as # positive words - # of neg words. 
 
 #indexing will be used to parse up the novel and examine sentiment change throughout
-#index 0 represents the first 100 lines, index 1 represents the 2nd 100 lines, etc. - and use the index as the atomic unit to evaluate the sentiment
+#index 0 represents the first 100 lines, index 1 represents the 2nd 100 lines, etc. 
 #"%/%" does "integer" division for us 
 5/2
+#vs
 5%/%2
 
+#let's look at sentiment in the different novels 
 ggplot(data = janeaustensentiment, aes(x = index, y = sentiment, fill = book)) +
     geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +
     facet_wrap(facets = ~ book, ncol = 2, scales = "free_x")
@@ -234,11 +242,19 @@ ggplot(data = tmp, mapping = aes(x = word, y = n, fill = sentiment)) +
     labs(y = "Contribution to sentiment", x = NULL) +
     coord_flip()
 
+#This lets us spot an anomaly in the sentiment analysis; the word “miss” is coded as negative but it is used as a title for young, unmarried women in Jane Austen’s works. If it were appropriate for our purposes, we could easily add “miss” to a custom stop-words list using bind_rows(). We could implement that with a strategy such as this.
+
+custom_stop_words <- bind_rows(data_frame(word = c("miss"), 
+                                          lexicon = c("custom")), 
+                               stop_words)
+
+custom_stop_words
+
 
 #' 
 #' #Topic Modelling
 #' 
-#' ##Tidy text vs. Other formats
+#' ##Tidy text vs. other formats
 #' So far we've analyzed text in the tidy format (one-token-per-doc-per-row). 
 #' Many useful descriptive analyses can be done from this format, but many NLP analyses require a different format:
 #' 
@@ -247,12 +263,13 @@ ggplot(data = tmp, mapping = aes(x = word, y = n, fill = sentiment)) +
 #' 
 #' ![Flowchart: Tidy Text to other Formats](http://tidytextmining.com/images/tidyflow-ch-5.png)
 #' 
-#' Let's examine one of the most common non-tidy structures text mining packages use: the document-term matrix (DTM). This is a matrix where: 
+#' Let's examine one of the most common non-tidy structures text mining packages use: the document-term matrix (DTM). This is a matrix in which: 
+#' 
 #'  * Each row represents one document (such as a book or article)
 #'  * Each column represents one term
 #'  * Each value (typically) contains the number of appearances of that term in that document.
 #'  * "Sparse" matrics as  most pairings of doc and term don't occur
-#'  * Can't be used directly with tidy tools, so tidytext package provides two verbs (tidy() and cast()) to convert betwen tidy and dtm formats. 
+#'  * Can't be used directly with tidy tools, so tidytext package provides two verbs (tidy() and cast()) to convert betwen tidy and other formats (i.e., dtm, dfm). 
 #'  
 #' Let's convert our tidy_books df to a dtm so we can impliment one common NLP model: Latent Dirichlet allocation (i.e., LDA or topic modeling)
 #'  
@@ -279,6 +296,7 @@ austen_dtm <- austen_books() %>%
 
 #let's take a look at the cast_dtm fxn
 ?cast_dtm
+austen_dtm
 
 #' ##A very brief overview of topic modeling (LDA)
 #' 
@@ -287,7 +305,9 @@ austen_dtm <- austen_books() %>%
 #' Topic modeling is:
 #' 
 #'  * An unsupservised classification of documents, similar to clustering in numeric data.
-#'  * LDA is a popular topic modeling method that treats:
+#' 
+#' LDA is a popular topic modeling method that treats:
+#' 
 #'   * Each doc as a mixture of topics (i.e., in a two-topic model we could say “Document 1 is 90% topic A and 10% topic B, while Document 2 is 30% topic A and 70% topic B.)
 #'   * Each topic as a mixture of words (i.e., For example, we could imagine a two-topic model of American news, with one topic for “politics” and one for “entertainment.” The most common words in the politics topic might be “President”, “Congress”, and “government”, while the entertainment topic may be made up of words such as “movies”, “television”, and “actor”. Importantly, words can be shared between topics; a word like “budget” might appear in both equally.)
 #' 
@@ -303,7 +323,7 @@ austen_dtm <- austen_books() %>%
 #' 
 #' We’ll retrieve the text of these four books using the gutenbergr package
 #' 
-#' #Our first topic model 
+#' ##Our first topic model 
 ## ----topics, message=FALSE, warning= FALSE, error=FALSE------------------
 titles <- c("Twenty Thousand Leagues under the Sea", "The War of the Worlds",
             "Pride and Prejudice", "Great Expectations")
@@ -313,10 +333,6 @@ library(gutenbergr)
 books <- gutenberg_works(title %in% titles) %>%
   gutenberg_download(meta_fields = "title")
 
-#tidy up, remove stop words, and divide into documents by chapter
-
-library(stringr)
-
 # divide into documents, each representing one chapter
 by_chapter <- books %>%
   group_by(title) %>%
@@ -324,6 +340,7 @@ by_chapter <- books %>%
   ungroup() %>%
   filter(chapter > 0) %>%
   unite(document, title, chapter)
+
 
 # split into words
 by_chapter_word <- by_chapter %>%
@@ -351,7 +368,7 @@ chapter_topics <- tidy(chapters_lda, matrix = "beta")
 chapter_topics
 #turned the model into a one-topic-per-term-per-row format. For each combination, the model computes the probability of that term being generated from that topic. For example, the term “joe” has an almost zero probability of being generated from topics 1, 2, or 3, but it makes up 1.45% of topic 4
 
-#what are the top 5 terms within each document? 
+#what are the top 5 terms within each topic? 
 top_terms <- chapter_topics %>%
   group_by(topic) %>%
   top_n(5, beta) %>%
@@ -370,10 +387,12 @@ top_terms %>%
   facet_wrap(~ topic, scales = "free") +
   coord_flip()
 
+#' 
 #' These topics are pretty clearly associated with the four books! There’s no question that the topic of “captain”, “nautilus”, “sea”, and “nemo” belongs to Twenty Thousand Leagues Under the Sea, and that “jane”, “darcy”, and “elizabeth” belongs to Pride and Prejudice. We see “pip” and “joe” from Great Expectations and “martians”, “black”, and “night” from The War of the Worlds. We also notice that, in line with LDA being a “fuzzy clustering” method, there can be words in common between multiple topics, such as “miss” in topics 1 and 4, and “time” in topics 3 and 4.
-## ----topics_part2, results='hide', message=FALSE, warning= FALSE, error=FALSE----
+#' 
+## ----topics_part2, message=FALSE, warning= FALSE, error=FALSE------------
 #Let's extract the document-topic-probabilities 
-#These may help us to see which topisc are associated with each document 
+#These may help us to see which topics are associated with each document 
 chapters_gamma <- tidy(chapters_lda, matrix = "gamma")
 chapters_gamma
 
@@ -386,8 +405,6 @@ chapters_gamma
 chapters_gamma <- chapters_gamma %>%
   separate(document, c("title", "chapter"), sep = "_", convert = TRUE)
 
-chapters_gamma
-
 chapters_gamma %>%
   mutate(title = reorder(title, gamma * topic)) %>%
   ggplot(aes(factor(topic), gamma)) +
@@ -395,7 +412,7 @@ chapters_gamma %>%
   facet_wrap(~ title)
 
 #We notice that almost all of the chapters from Pride and Prejudice, War of the Worlds, and Twenty Thousand Leagues Under the Sea were uniquely identified as a single topic each.
-#It does look like some chapters from Great Expectations (which should be topic 4) were somewhat associated with other topics. 
+#It does look like some chapters from Great Expectations were somewhat associated with other topics. 
 
 #Are there any cases where the topic most associated with a chapter belonged to another book? First we’d find the topic that was most associated with each chapter using top_n(), which is effectively the “classification” of that chapter.
 
@@ -424,7 +441,11 @@ chapter_classifications %>%
 
 #' 
 #' Some additional resources to dive into later on your text mining journey:
-#'  *As mentioned [the quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) for managing and analyzing text. Built for efficiency and speed to allow for faster manipultion and processing. Quick conversion from dfm to non-quanteda format (i.e., dtm).  Good for tokenizing and stemming. 
+#' 
+#'  * As mentioned [the quanteda package](https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) for
+#'  managing and analyzing text. Built for efficiency and speed to allow for faster manipultion and processing. Quick
+#'  conversion from dfm to non-quanteda format (i.e., dtm).  Good for tokenizing and stemming. 
+#'  * Word embeddings offer another way to numerically represent text for analyses.The [GloVe](https://cran.r-project.org/web/packages/text2vec/vignettes/glove.html) package offers implimentation in R.
 #' 
 #' #More advanced topics.. 
 #' 
@@ -441,7 +462,7 @@ chps_topic_probability <- spread(chapters_gamma, topic, gamma) %>%
 #install.packages(MASS)
 
 library(MASS)
-# find the linear combinations of the original variables (the 13 chemical concentrations here) that gives the best possible separation between the groups
+# find the linear combinations of the original variables (in this case doc-topic-probabilities) that gives the best possible separation between the groups (i.e., books as the data is currently formatted)
 chps_topic_probability <- chps_topic_probability %>% 
   mutate(id = row.names(.))
 
@@ -451,7 +472,8 @@ test <- chps_topic_probability %>%
   filter(!id %in% train$id)
 
 lda.fit <- lda(book ~ topic_1 + topic_2 + topic_3 + topic_4 , 
-                  data = train)
+                  data = train)  
+#note lda fxn here performs linear discriminant analysis-- not LDA Latent Dirichlet Allocation
 
 lda.pred=predict(lda.fit, test)
 names(lda.pred)
@@ -460,62 +482,61 @@ table(lda.class,test$book)
 lda.class[1:20]
 test[1:20,'book']
 
-mean(lda.class==test$book) #100% accuracy!! 
-
+mean(lda.class==test$book) 
 
 
 
 #' 
 #' ##Interactive Topic Visualization
-## ----visualizing_lda, results='hide', message=FALSE, warning= FALSE, error=FALSE----
-##Handy Function for Topic Visualization
-
-#' @title Interactive Tool for visualizing Topics and Per-Word-pertopic-probabilities
-#' @param file Fitted LDA output, corpus file: row for each token-document combo with count of token within document ,document term matrix
-#' @return Shiny visual of all topics and associated words
-#interactive visualization of all topics
-
-topicmodels_json_ldavis <- function(fitted, corpus, doc_term){
-  # Required packages
-  library(topicmodels)
-  library(dplyr)
-  library(stringi)
-  library(tm)
-  library(LDAvis)
-  
-  # Find required quantities
-  phi <- posterior(fitted)$terms %>% as.matrix
-  theta <- posterior(fitted)$topics %>% as.matrix
-  vocab <- colnames(phi)
-  doc_length <- vector()
-  for (i in 1:length(corpus)) {
-    temp <- paste(corpus[[i]]$content, collapse = ' ')
-    doc_length <- c(doc_length, stri_count(temp, regex = '\\S+'))
-  }
-  #temp_frequency <- inspect(doc_term)
-  freq_matrix <- data.frame(ST = colnames(doc_term),
-                            Freq = colSums(as.matrix(doc_term)))
-  rm(temp_frequency)
-  
-  # Convert to json
-  json_lda <- LDAvis::createJSON(phi = phi, theta = theta,
-                                 vocab = vocab,
-                                 doc.length = doc_length,
-                                 term.frequency = freq_matrix$Freq)
-  
-  
-  return(json_lda)
-}
-
-topics_json_lda <- topicmodels_json_ldavis(chapters_lda,
-                                         tm::Corpus(tm::VectorSource(distinct(word_counts, document)$document)),
-                                         chapters_dtm)
-#serVis(topics_json_lda, open.browser = TRUE)
-
+## ----visualizing_lda,  results='hide', message=FALSE, warning= FALSE, error=FALSE,eval = FALSE----
+## ##Handy Function for Topic Visualization
+## 
+## #' @title Interactive Tool for visualizing Topics and Per-Word-pertopic-probabilities
+## #' @param file Fitted LDA output, corpus file: row for each token-document combo with count of token within document ,document term matrix
+## #' @return Shiny visual of all topics and associated words
+## 
+## topicmodels_json_ldavis <- function(fitted, corpus, doc_term){
+##   # Required packages
+##   library(topicmodels)
+##   library(dplyr)
+##   library(stringi)
+##   library(tm)
+##   library(LDAvis)
+## 
+##   # Find required quantities
+##   phi <- posterior(fitted)$terms %>% as.matrix
+##   theta <- posterior(fitted)$topics %>% as.matrix
+##   vocab <- colnames(phi)
+##   doc_length <- vector()
+##   for (i in 1:length(corpus)) {
+##     temp <- paste(corpus[[i]]$content, collapse = ' ')
+##     doc_length <- c(doc_length, stri_count(temp, regex = '\\S+'))
+##   }
+##   #temp_frequency <- inspect(doc_term)
+##   freq_matrix <- data.frame(ST = colnames(doc_term),
+##                             Freq = colSums(as.matrix(doc_term)))
+##   rm(temp_frequency)
+## 
+##   # Convert to json
+##   json_lda <- LDAvis::createJSON(phi = phi, theta = theta,
+##                                  vocab = vocab,
+##                                  doc.length = doc_length,
+##                                  term.frequency = freq_matrix$Freq)
+## 
+## 
+##   return(json_lda)
+## }
+## 
+## topics_json_lda <- topicmodels_json_ldavis(chapters_lda,
+##                                          tm::Corpus(tm::VectorSource(distinct(word_counts, document)$document)),
+##                                          chapters_dtm)
+## 
+## serVis(topics_json_lda, open.browser = TRUE)
+## 
 
 #' 
 #' ##Finding the Optimal Number of Topics
-#' We can take advantage of parrallel processing in R find the optimal number of topics
+#' We can take advantage of parrallel processing in R to find the optimal number of topics
 #' 
 ## ----optimal_topics, results='hide', message=FALSE, warning= FALSE, error=FALSE,eval = FALSE----
 ## 
@@ -535,12 +556,12 @@ topics_json_lda <- topicmodels_json_ldavis(chapters_lda,
 ## 
 ## # set parameters for LDA below
 ## folds <- 5
-## splitfolds <- sample(1:folds, n, replace = TRUE)
 ## candidate_k <- c(2, 3, 4, 5, 6, 7, 10)
 ## burnin = 1000
 ## iter = 1000
 ## keep = 50
 ## n <- nrow(chapters_dtm) # doc term matrix created above
+## splitfolds <- sample(1:folds, n, replace = TRUE)
 ## clusterExport(cluster, c("chapters_dtm", "burnin", "iter", "keep", "splitfolds", "folds", "candidate_k", "n"))
 ## 
 ## system.time({
